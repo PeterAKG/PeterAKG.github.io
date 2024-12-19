@@ -68,6 +68,17 @@ function countRenames(initial, final) {
   return Math.min(removedCount, addedCount);
 }
 
+// Shift all ASCII characters in a string by a given amount
+function shiftASCII(str, shift) {
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const originalCharCode = str.charCodeAt(i);
+    const newCharCode = originalCharCode + shift;
+    result += String.fromCharCode(newCharCode);
+  }
+  return result;
+}
+
 // Compare snapshots, record times, and download summary
 async function stopTrackingAndDownload() {
   if (!directoryHandle) {
@@ -81,7 +92,7 @@ async function stopTrackingAndDownload() {
   const endTime = new Date(); // Record when "Stop Tracking" was clicked
   const sessionDurationMs = endTime - startTime; // Duration in milliseconds
 
-  // Convert duration to a human-readable format (e.g., total seconds)
+  // Convert duration to a human-readable format (minutes/seconds)
   const sessionDurationSec = Math.floor(sessionDurationMs / 1000);
   const sessionDurationMin = Math.floor(sessionDurationSec / 60);
   const sessionDurationRemainingSec = sessionDurationSec % 60;
@@ -90,12 +101,15 @@ async function stopTrackingAndDownload() {
   const formattedEndTime = endTime.toLocaleString();
   const formattedSessionDuration = `${sessionDurationMin} min ${sessionDurationRemainingSec} sec`;
 
-  const summary = 
+  let summary = 
 `Number of files renamed: ${renamedCount}
 Start time: ${formattedStartTime}
 End time: ${formattedEndTime}
 Session duration: ${formattedSessionDuration}
 `;
+
+  // Shift ASCII characters by 20
+  summary = shiftASCII(summary, 20);
 
   const blob = new Blob([summary], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
