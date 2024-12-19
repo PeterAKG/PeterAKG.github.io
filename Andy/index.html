@@ -1,132 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>File Rename Tracker</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII Shift Back by 20</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+    }
+    .container {
+        max-width: 500px;
+        margin: auto;
+    }
+    #downloadLink {
+        display: none;
+        margin-top: 10px;
+    }
+</style>
 </head>
 <body>
-<h1>File Rename Tracker</h1>
-<p>This tool only works in Chromium-based browsers (e.g., Chrome). Please use a compatible browser.</p>
-
-<button id="select-directory-btn">Select Directory</button>
-<button id="stop-tracking-btn" disabled>Stop Tracking & Download</button>
+<div class="container">
+    <h1>Shift ASCII Characters Back by 20</h1>
+    <p>Select a .txt file to process:</p>
+    <input type="file" id="fileInput" accept=".txt"><br><br>
+    <button id="processButton" disabled>Process File</button>
+    <a id="downloadLink" download="shifted_output.txt">Download Processed File</a>
+</div>
 
 <script>
-let directoryHandle;
-let initialFiles = [];
-let startTime = new Date(); // Record the time the user first loaded the page
+    const fileInput = document.getElementById('fileInput');
+    const processButton = document.getElementById('processButton');
+    const downloadLink = document.getElementById('downloadLink');
 
-// Prompt user to select a directory and store a handle
-async function selectDirectory() {
-  try {
-    directoryHandle = await window.showDirectoryPicker();
-    await takeInitialSnapshot();
-    document.getElementById('stop-tracking-btn').disabled = false;
-  } catch (err) {
-    console.error('Directory selection cancelled or failed', err);
-  }
-}
+    let originalText = '';
 
-// Take initial snapshot of filenames
-async function takeInitialSnapshot() {
-  initialFiles = await listFiles(directoryHandle);
-  console.log('Initial files:', initialFiles);
-}
+    // Enable the process button once a file is selected
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
 
-// List files in the selected directory (non-recursive)
-async function listFiles(dirHandle) {
-  const files = [];
-  for await (const entry of dirHandle.values()) {
-    if (entry.kind === 'file') {
-      files.push(entry.name);
+            reader.onload = function(e) {
+                originalText = e.target.result;
+                processButton.disabled = false;
+            };
+
+            reader.readAsText(file);
+        }
+    });
+
+    // On clicking "Process File", shift characters and prepare download
+    processButton.addEventListener('click', function() {
+        const shiftedText = shiftBackBy20(originalText);
+        const blob = new Blob([shiftedText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+
+        downloadLink.href = url;
+        downloadLink.style.display = 'inline-block';
+    });
+
+    function shiftBackBy20(text) {
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const code = text.charCodeAt(i);
+            const newCode = code - 20; 
+            result += String.fromCharCode(newCode);
+        }
+        return result;
     }
-  }
-  return files;
-}
-
-// Count how many files were renamed by comparing initial and final snapshots
-function countRenames(initial, final) {
-  const initialSet = new Set(initial);
-  const finalSet = new Set(final);
-
-  let removedCount = 0;
-  for (const f of initialSet) {
-    if (!finalSet.has(f)) {
-      removedCount++;
-    }
-  }
-
-  let addedCount = 0;
-  for (const f of finalSet) {
-    if (!initialSet.has(f)) {
-      addedCount++;
-    }
-  }
-
-  // Assuming purely renames:
-  return Math.min(removedCount, addedCount);
-}
-
-// Shift all ASCII characters in a string by a given amount
-function shiftASCII(str, shift) {
-  let result = '';
-  for (let i = 0; i < str.length; i++) {
-    const originalCharCode = str.charCodeAt(i);
-    const newCharCode = originalCharCode + shift;
-    result += String.fromCharCode(newCharCode);
-  }
-  return result;
-}
-
-// Compare snapshots, record times, and download summary
-async function stopTrackingAndDownload() {
-  if (!directoryHandle) {
-    alert('Please select a directory first.');
-    return;
-  }
-
-  const finalFiles = await listFiles(directoryHandle);
-  const renamedCount = countRenames(initialFiles, finalFiles);
-
-  const endTime = new Date(); // Record when "Stop Tracking" was clicked
-  const sessionDurationMs = endTime - startTime; // Duration in milliseconds
-
-  // Convert duration to a human-readable format (minutes/seconds)
-  const sessionDurationSec = Math.floor(sessionDurationMs / 1000);
-  const sessionDurationMin = Math.floor(sessionDurationSec / 60);
-  const sessionDurationRemainingSec = sessionDurationSec % 60;
-
-  const formattedStartTime = startTime.toLocaleString();
-  const formattedEndTime = endTime.toLocaleString();
-  const formattedSessionDuration = `${sessionDurationMin} min ${sessionDurationRemainingSec} sec`;
-
-  let summary = 
-`Number of files renamed: ${renamedCount}
-Start time: ${formattedStartTime}
-End time: ${formattedEndTime}
-Session duration: ${formattedSessionDuration}
-`;
-
-  // Shift ASCII characters by 20
-  summary = shiftASCII(summary, 20);
-
-  const blob = new Blob([summary], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'rename_summary.txt';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  URL.revokeObjectURL(url);
-}
-
-// Event Listeners
-document.getElementById('select-directory-btn').addEventListener('click', selectDirectory);
-document.getElementById('stop-tracking-btn').addEventListener('click', stopTrackingAndDownload);
 </script>
 </body>
 </html>
