@@ -7,7 +7,7 @@
 </head>
 <body>
 <h1>File Rename Tracker</h1>
-<p>This tool only works in Chromium-based browsers (e.g., Chrome). Please make sure you're using a compatible browser.</p>
+<p>This tool only works in Chromium-based browsers (e.g., Chrome). Please use a compatible browser.</p>
 
 <button id="select-directory-btn">Select Directory</button>
 <button id="stop-tracking-btn" disabled>Stop Tracking & Download</button>
@@ -15,6 +15,7 @@
 <script>
 let directoryHandle;
 let initialFiles = [];
+let startTime = new Date(); // Record the time the user first loaded the page
 
 // Prompt user to select a directory and store a handle
 async function selectDirectory() {
@@ -40,7 +41,6 @@ async function listFiles(dirHandle) {
     if (entry.kind === 'file') {
       files.push(entry.name);
     }
-    // If you want to handle subdirectories, you would need recursion here.
   }
   return files;
 }
@@ -68,7 +68,7 @@ function countRenames(initial, final) {
   return Math.min(removedCount, addedCount);
 }
 
-// Compare and download the summary
+// Compare snapshots, record times, and download summary
 async function stopTrackingAndDownload() {
   if (!directoryHandle) {
     alert('Please select a directory first.');
@@ -78,7 +78,25 @@ async function stopTrackingAndDownload() {
   const finalFiles = await listFiles(directoryHandle);
   const renamedCount = countRenames(initialFiles, finalFiles);
 
-  const summary = `Number of files renamed: ${renamedCount}\n`;
+  const endTime = new Date(); // Record when "Stop Tracking" was clicked
+  const sessionDurationMs = endTime - startTime; // Duration in milliseconds
+
+  // Convert duration to a human-readable format (e.g., total seconds)
+  const sessionDurationSec = Math.floor(sessionDurationMs / 1000);
+  const sessionDurationMin = Math.floor(sessionDurationSec / 60);
+  const sessionDurationRemainingSec = sessionDurationSec % 60;
+
+  const formattedStartTime = startTime.toLocaleString();
+  const formattedEndTime = endTime.toLocaleString();
+  const formattedSessionDuration = `${sessionDurationMin} min ${sessionDurationRemainingSec} sec`;
+
+  const summary = 
+`Number of files renamed: ${renamedCount}
+Start time: ${formattedStartTime}
+End time: ${formattedEndTime}
+Session duration: ${formattedSessionDuration}
+`;
+
   const blob = new Blob([summary], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
 
