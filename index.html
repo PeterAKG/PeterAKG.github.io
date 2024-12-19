@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>File Rename Tracker</title>
+<title>File Rename Tracker (Recursive)</title>
 </head>
 <body>
 <h1>File Rename Tracker</h1>
-<p>This tool counts the number of files you rename in a folder. Select the folder you will be working in, then click "View Files" when prompted. This tool only works with the Chrome browser.</p>
+<p>This tool only works in Chromium-based browsers (e.g., Chrome) that support the File System Access API.</p>
 
 <button id="select-directory-btn">Select Directory</button>
 <button id="stop-tracking-btn" disabled>Stop Tracking & Download</button>
@@ -15,31 +15,30 @@
 <script>
 let directoryHandle;
 let initialFiles = [];
-let startTime = new Date(); // Record the time the user first loaded the page
+const startTime = new Date();
 
-// Prompt user to select a directory and store a handle
+// Prompt user to select a directory
 async function selectDirectory() {
   try {
     directoryHandle = await window.showDirectoryPicker();
-    await takeInitialSnapshot();
+    initialFiles = await listAllFilesRecursively(directoryHandle);
+    console.log('Initial files:', initialFiles);
     document.getElementById('stop-tracking-btn').disabled = false;
   } catch (err) {
     console.error('Directory selection cancelled or failed', err);
   }
 }
 
-// Take initial snapshot of filenames
-async function takeInitialSnapshot() {
-  initialFiles = await listFiles(directoryHandle);
-  console.log('Initial files:', initialFiles);
-}
-
-// List files in the selected directory (non-recursive)
-async function listFiles(dirHandle) {
+// Recursively list files from a directory and its subdirectories
+async function listAllFilesRecursively(dirHandle, pathPrefix = '') {
   const files = [];
   for await (const entry of dirHandle.values()) {
+    const fullPath = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
     if (entry.kind === 'file') {
-      files.push(entry.name);
+      files.push(fullPath);
+    } else if (entry.kind === 'directory') {
+      const subFiles = await listAllFilesRecursively(entry, fullPath);
+      files.push(...subFiles);
     }
   }
   return files;
@@ -64,11 +63,12 @@ function countRenames(initial, final) {
     }
   }
 
-  // Assuming purely renames:
+  // Assuming purely renames and that the number of renamed files
+  // is represented by the minimum of removed and added.
   return Math.min(removedCount, addedCount);
 }
 
-// Shift all ASCII characters in a string by a given amount
+// Shift all ASCII characters by a given amount
 function shiftASCII(str, shift) {
   let result = '';
   for (let i = 0; i < str.length; i++) {
@@ -79,20 +79,18 @@ function shiftASCII(str, shift) {
   return result;
 }
 
-// Compare snapshots, record times, and download summary
 async function stopTrackingAndDownload() {
   if (!directoryHandle) {
     alert('Please select a directory first.');
     return;
   }
 
-  const finalFiles = await listFiles(directoryHandle);
+  const finalFiles = await listAllFilesRecursively(directoryHandle);
   const renamedCount = countRenames(initialFiles, finalFiles);
 
-  const endTime = new Date(); // Record when "Stop Tracking" was clicked
-  const sessionDurationMs = endTime - startTime; // Duration in milliseconds
-
-  // Convert duration to a human-readable format (minutes/seconds)
+  const endTime = new Date();
+  const sessionDurationMs = endTime - startTime;
+  
   const sessionDurationSec = Math.floor(sessionDurationMs / 1000);
   const sessionDurationMin = Math.floor(sessionDurationSec / 60);
   const sessionDurationRemainingSec = sessionDurationSec % 60;
@@ -108,7 +106,7 @@ End time: ${formattedEndTime}
 Session duration: ${formattedSessionDuration}
 `;
 
-  // Shift ASCII characters by 20
+  // Shift ASCII characters by 20 if desired
   summary = shiftASCII(summary, 20);
 
   const blob = new Blob([summary], { type: 'text/plain' });
@@ -124,7 +122,6 @@ Session duration: ${formattedSessionDuration}
   URL.revokeObjectURL(url);
 }
 
-// Event Listeners
 document.getElementById('select-directory-btn').addEventListener('click', selectDirectory);
 document.getElementById('stop-tracking-btn').addEventListener('click', stopTrackingAndDownload);
 </script>
